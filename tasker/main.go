@@ -1,12 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-	"slices"
 	"strconv"
+
+	"tasker/task"
 )
 
 func PrintUsage() {
@@ -15,48 +14,6 @@ func PrintUsage() {
 	fmt.Println("  add <task description>")
 	fmt.Println("  list")
 	fmt.Println("  done <task_id>")
-}
-
-type Task struct {
-	ID          int    `json:"id"`
-	Description string `json:"description"`
-	Done        bool   `json:"done"`
-}
-
-func loadTasks() ([]Task, error) {
-	f, err := os.Open("tasks.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []Task{}, nil
-		}
-		return nil, err
-	}
-	defer f.Close()
-
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	var tasks []Task
-	err = json.Unmarshal(data, &tasks)
-	if err != nil {
-		return nil, err
-	}
-
-	return tasks, nil
-}
-
-func saveTasks(tasks []Task) error {
-	data, err := json.MarshalIndent(tasks, "", "	")
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile("tasks.json", data, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func main() {
@@ -70,7 +27,7 @@ func main() {
 
 	cmd := args[0]
 
-	tasks, err := loadTasks()
+	tasks, err := task.Load()
 	if err != nil {
 		fmt.Printf("Error: Unable to load tasks: %s\n", err)
 		return
@@ -84,18 +41,15 @@ func main() {
 			return
 		}
 		taskDescription := args[1]
-		newTask := Task{
-			ID:          len(tasks) + 1,
-			Description: taskDescription,
-			Done:        false,
-		}
-		tasks = append(tasks, newTask)
-		err := saveTasks(tasks)
+
+		tasks = task.Add(tasks, taskDescription)
+
+		err := task.Save(tasks)
 		if err != nil {
 			fmt.Printf("Error: Unable to save tasks: %s\n", err)
 			return
 		}
-		fmt.Printf("Added task: %d. [%v] %s\n", newTask.ID, newTask.Done, newTask.Description)
+		fmt.Printf("Added task: %d. %s\n", tasks[len(tasks) - 1].ID, taskDescription)
 
 	case "list":
 		if len(tasks) == 0 {
@@ -123,20 +77,19 @@ func main() {
 			return
 		}
 
-		idx := slices.IndexFunc(tasks, func(t Task) bool { return t.ID == taskId })
+		result, tasks := task.MarkDone(tasks, taskId)
 
-		if idx == -1 {
-			fmt.Printf("Error: Unable to find Task with Task Id: %d\n", taskId)
+		if result == false {
+			fmt.Printf("Error: Unable to mark Task done with Task Id: %d\n", taskId)
 			return
 		}
 
-		tasks[idx].Done = true
-		err = saveTasks(tasks)
+		err = task.Save(tasks)
 		if err != nil {
 			fmt.Printf("Error: Unable to save tasks: %s\n", err)
 			return
 		}
-		fmt.Printf("Task marked done: %d. [%v] %s\n", tasks[idx].ID, tasks[idx].Done, tasks[idx].Description)
+		fmt.Printf("Task marked done for Task Id: %d.\n", taskId)
 
 	default:
 		fmt.Printf("Error: Unknown Command: %q\n", args[0])
