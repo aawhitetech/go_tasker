@@ -6,14 +6,16 @@ import (
 	"strconv"
 
 	"tasker/task"
+	"tasker/api"
 )
 
-func PrintUsage() {
+func printUsage() {
 	fmt.Println("Usage: tasker <command> [arguments]")
 	fmt.Println("Commands:")
 	fmt.Println("  add <task description>")
 	fmt.Println("  list")
 	fmt.Println("  done <task_id>")
+	fmt.Println("  serve")
 }
 
 func main() {
@@ -21,7 +23,7 @@ func main() {
 
 	if len(args) == 0 {
 		fmt.Println("Error: No Command Provided")
-		PrintUsage()
+		printUsage()
 		return
 	}
 
@@ -34,10 +36,23 @@ func main() {
 	}
 
 	switch cmd {
+	case "serve":
+		server, err := api.NewServer()
+		if err != nil {
+			fmt.Println("Error: Unable to create HTTP Server", err)
+			return
+		}
+
+		fmt.Println("Serving on http://localhost:8080")
+		if err:= server.Start("localhost:8080"); err != nil {
+			fmt.Println("Error: Unable to start HTTP Server", err)
+		}
+		return
+
 	case "add":
 		if len(args) < 2 {
 			fmt.Println("Error: No Task Name Provided")
-			PrintUsage()
+			printUsage()
 			return
 		}
 		taskDescription := args[1]
@@ -63,7 +78,7 @@ func main() {
 	case "done":
 		if len(args) < 2 {
 			fmt.Println("Error: No Task Id Provided")
-			PrintUsage()
+			printUsage()
 			return
 		}
 		taskId, err := strconv.Atoi(args[1])
@@ -93,7 +108,7 @@ func main() {
 
 	default:
 		fmt.Printf("Error: Unknown Command: %q\n", args[0])
-		PrintUsage()
+		printUsage()
 		return
 	}
 }
