@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
+	"strconv"
 )
 
 func PrintUsage() {
@@ -12,6 +14,7 @@ func PrintUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  add <task description>")
 	fmt.Println("  list")
+	fmt.Println("  done <task_id>")
 }
 
 type Task struct {
@@ -57,8 +60,6 @@ func saveTasks(tasks []Task) error {
 }
 
 func main() {
-	fmt.Println("tasker running")
-
 	args := os.Args[1:]
 
 	if len(args) == 0 {
@@ -71,7 +72,7 @@ func main() {
 
 	tasks, err := loadTasks()
 	if err != nil {
-		fmt.Printf("Error: Unable to load tasks: %s", err)
+		fmt.Printf("Error: Unable to load tasks: %s\n", err)
 		return
 	}
 
@@ -79,7 +80,7 @@ func main() {
 	case "add":
 		if len(args) < 2 {
 			fmt.Println("Error: No Task Name Provided")
-			fmt.Println("Usage: tasker add <task description>")
+			PrintUsage()
 			return
 		}
 		taskDescription := args[1]
@@ -91,7 +92,7 @@ func main() {
 		tasks = append(tasks, newTask)
 		err := saveTasks(tasks)
 		if err != nil {
-			fmt.Printf("Error: Unable to save tasks: %s", err)
+			fmt.Printf("Error: Unable to save tasks: %s\n", err)
 			return
 		}
 		fmt.Printf("Added task: %d. [%v] %s\n", newTask.ID, newTask.Done, newTask.Description)
@@ -104,6 +105,38 @@ func main() {
 		for _, v := range tasks {
 			fmt.Printf("%d. [%v] %s\n", v.ID, v.Done, v.Description)
 		}
+
+	case "done":
+		if len(args) < 2 {
+			fmt.Println("Error: No Task Id Provided")
+			PrintUsage()
+			return
+		}
+		taskId, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Printf("Error: Unable to convert Task Id to integer: %s\n", err)
+			return
+		}
+
+		if taskId <= 0 {
+			fmt.Printf("Error: Invalid Task Id: %d\n", taskId)
+			return
+		}
+
+		idx := slices.IndexFunc(tasks, func(t Task) bool { return t.ID == taskId })
+
+		if idx == -1 {
+			fmt.Printf("Error: Unable to find Task with Task Id: %d\n", taskId)
+			return
+		}
+
+		tasks[idx].Done = true
+		err = saveTasks(tasks)
+		if err != nil {
+			fmt.Printf("Error: Unable to save tasks: %s\n", err)
+			return
+		}
+		fmt.Printf("Task marked done: %d. [%v] %s\n", tasks[idx].ID, tasks[idx].Done, tasks[idx].Description)
 
 	default:
 		fmt.Printf("Error: Unknown Command: %q\n", args[0])
